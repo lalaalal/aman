@@ -1,8 +1,7 @@
 # aman
-
 Arch AUR Manager
 
- usage
+## usage
 
 ```
 aman [*ACTION] [PKG NAME]
