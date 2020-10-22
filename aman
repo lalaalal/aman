@@ -35,95 +35,90 @@ class AurVersionManager:
             json.dump(self.version_data, version_file)
 
 
-AUR_URL = "https://aur.archlinux.org"
-SEARCH_URL = AUR_URL + "/packages/?K="
-AUR_PATH = "/usr/local/share/aur"
-aurVersionManager = AurVersionManager()
+class AurManager:
+    def __init__(self):
+        self.AUR_URL = "https://aur.archlinux.org"
+        self.SEARCH_URL = self.AUR_URL + "/packages/?K="
+        self.AUR_PATH = "/usr/local/share/aur"
+        if not os.path.exists(self.AUR_PATH):
+            os.makedirs(self.AUR_PATH)
+        self.aurVersionManager = AurVersionManager()
 
+    def search(self, name):
+        url = self.SEARCH_URL + name
+        html = requests.get(url)
+        soup = BeautifulSoup(html.text, 'html.parser')
+        names = soup.body.table.select("tr td:first-child a")
+        versions = soup.body.table.select("tr td:nth-child(2)")
 
-def search(name):
-    url = SEARCH_URL + name
-    html = requests.get(url)
-    soup = BeautifulSoup(html.text, 'html.parser')
-    names = soup.body.table.select("tr td:first-child a")
-    versions = soup.body.table.select("tr td:nth-child(2)")
+        list = []
+        for i in range(0, len(names)):
+            item = {"name": names[i].text, "version": versions[i].text}
+            list.append(item)
 
-    list = []
-    for i in range(0, len(names)):
-        item = {"name": names[i].text, "version": versions[i].text}
-        list.append(item)
+        return list
 
-    return list
+    def print_list(self, list):
+        i = 0
+        for item in list:
+            print("[{index}] {name} {version}".format(
+                index=i, name=item["name"], version=item["version"]))
+            i += 1
 
+    def select(self, list):
+        self.print_list(list)
+        selected_index = int(
+            input("Select ({cancel} to cancel): ".format(cancel=len(list))))
+        if (selected_index >= len(list)):
+            exit(-1)
+        return list[selected_index]
 
-def print_list(list):
-    i = 0
-    for item in list:
-        print("[{index}] {name} {version}".format(
-            index=i, name=item["name"], version=item["version"]))
-        i += 1
+    def install(self, item):
+        name = item["name"]
+        version = item["version"]
+        url = self.AUR_URL + "/" + name
 
+        print("\nInstalling {name}...".format(name=name))
+        os.chdir(self.AUR_PATH)
+        os.system("git clone " + url)
+        os.chdir(name)
+        os.system("makepkg -s")
+        os.system("find . -name *.zst -exec sudo pacman -U {} +")
+        self.aurVersionManager.set(name, version)
 
-def select(list):
-    print_list(list)
-    selected_index = int(
-        input("Select ({cancel} to cancel): ".format(cancel=len(list))))
-    if (selected_index >= len(list)):
-        exit(-1)
-    return list[selected_index]
+    def get_new_version(self, item):
+        html = requests.get(self.AUR_URL + "/packages/" + item["name"])
+        soup = BeautifulSoup(html.text, "html.parser")
+        title = soup.body.select("#pkgdetails h2")[0].text
+        pieces = title.split(" ")
+        new_version = pieces[len(pieces) - 1]
 
+        return new_version
 
-def install(item):
-    name = item["name"]
-    version = item["version"]
-    url = AUR_URL + "/" + name
+    def update(self, item):
+        print("Checking update for " + item["name"], end="...", flush=True)
+        new_version = self.get_new_version(item)
+        if new_version == item["version"]:
+            print(" Up to date", flush=True)
+            return
+        os.chdir(self.AUR_PATH)
+        os.system("rm -rf " + item["name"])
+        item["version"] = new_version
+        self.install(item)
 
-    print("\nInstalling {name}...".format(name=name))
-    os.chdir(AUR_PATH)
-    os.system("git clone " + url)
-    os.chdir(name)
-    os.system("makepkg -s")
-    os.system("find . -name *.zst -exec sudo pacman -U {} +")
-    aurVersionManager.set(name, version)
+    def update_all(self):
+        list = self.aurVersionManager.version_data
+        for item in list:
+            self.update(item)
 
+    def remove(self, item):
+        os.chdir(self.AUR_PATH)
+        os.system("rm -rf " + item["name"])
+        os.system("sudo pacman -R " + item["name"])
+        self.aurVersionManager.remove(item["name"])
 
-def get_new_version(item):
-    print("Checking update for " + item["name"], end="...")
-    html = requests.get(AUR_URL + "/packages/" + item["name"])
-    soup = BeautifulSoup(html.text, "html.parser")
-    title = soup.body.select("#pkgdetails h2")[0].text
-    pieces = title.split(" ")
-    new_version = pieces[len(pieces) - 1]
-
-    return new_version
-
-
-def update(item):
-    new_version = get_new_version(item)
-    if new_version == item["version"]:
-        print(" Up to date")
-        return
-    os.chdir(AUR_PATH)
-    os.system("rm -rf " + item["name"])
-    item["version"] = new_version
-    install(item)
-
-
-def update_all():
-    list = aurVersionManager.version_data
-    for item in list:
-        update(item)
-
-
-def remove(item):
-    os.chdir(AUR_PATH)
-    os.system("rm -rf " + item["name"])
-    os.system("sudo pacman -R " + item["name"])
-    aurVersionManager.remove(item["name"])
-
-
-def show_aurs():
-    print_list(aurVersionManager.version_data)
+    def show_aurs(self):
+        self.print_list(self.aurVersionManager.version_data)
 
 
 def help():
@@ -139,24 +134,25 @@ if len(sys.argv) == 1:
     help()
     exit(-1)
 
+aurManager = AurManager()
 action = sys.argv[1]
 
 if action == "search":
     name = sys.argv[2]
-    list = search(name)
-    print_list(list)
+    list = aurManager.search(name)
+    aurManager.print_list(list)
 elif action == "install":
     name = sys.argv[2]
-    list = search(name)
-    item = select(list)
-    install(item)
+    list = aurManager.search(name)
+    item = aurManager.select(list)
+    aurManager.install(item)
 elif action == "show":
-    show_aurs()
+    aurManager.show_aurs()
 elif action == "update":
-    update_all()
+    aurManager.update_all()
 elif action == "remove":
-    list = aurVersionManager.version_data
-    item = select(list)
-    remove(item)
+    list = aurManager.aurVersionManager.version_data
+    item = aurManager.select(list)
+    aurManager.remove(item)
 else:
     help()
