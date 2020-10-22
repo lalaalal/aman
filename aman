@@ -24,7 +24,8 @@ class AurVersionManager:
         self.save()
 
     def remove(self, name):
-        for i in range(0, len(self.version_data)):
+        print(len(self.version_data))
+        for i in range(0, len(self.version_data) - 1):
             item = self.version_data[i]
             if item["name"] == name:
                 self.version_data.pop(i)
@@ -52,7 +53,7 @@ class AurManager:
         versions = soup.body.table.select("tr td:nth-child(2)")
 
         list = []
-        for i in range(0, len(names)):
+        for i in range(0, len(names) - 1):
             item = {"name": names[i].text, "version": versions[i].text}
             list.append(item)
 
