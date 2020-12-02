@@ -29,7 +29,8 @@ class AurVersionManager:
             item = self.version_data[i]
             if item["name"] == name:
                 self.version_data.pop(i)
-        self.save()
+                self.save()
+                return
 
     def save(self):
         with open(self.VERSION_FILE_PATH, "w") as version_file:
