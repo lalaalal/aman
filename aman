@@ -24,8 +24,7 @@ class AurVersionManager:
         self.save()
 
     def remove(self, name):
-        print(len(self.version_data))
-        for i in range(0, len(self.version_data) - 1):
+        for i in range(0, len(self.version_data)):
             item = self.version_data[i]
             if item["name"] == name:
                 self.version_data.pop(i)
@@ -128,13 +127,13 @@ def help():
     print("\tsearch  [*PKG NAME]")
     print("\tinstall [*PKG NAME]")
     print("\tupdate")
-    print("\tshow")
+    print("\tlist")
     print("\tremove")
 
 
 if len(sys.argv) == 1:
-    help()
-    exit(-1)
+    command = input("command : ")
+    sys.argv.append(command)
 
 aurManager = AurManager()
 action = sys.argv[1]
@@ -148,7 +147,7 @@ elif action == "install":
     list = aurManager.search(name)
     item = aurManager.select(list)
     aurManager.install(item)
-elif action == "show":
+elif action == "list":
     aurManager.show_aurs()
 elif action == "update":
     aurManager.update_all()
