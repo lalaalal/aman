@@ -54,7 +54,7 @@ class AurManager:
 
         list = []
         for i in range(0, len(names) - 1):
-            item = {"name": names[i].text, "version": versions[i].text}
+            item = {"name": names[i].text.strip(), "version": versions[i].text.strip()}
             list.append(item)
 
         return list
